@@ -110,20 +110,20 @@ EDITORIAL_NUMBER_SIZE: Final[float] = 12
 
 POINT_NUMBER_SIZE: Final[float] = 10.5
 
-POINT_TEXT_SIZE: Final[float] = 10.25
+POINT_TEXT_SIZE: Final[float] = 10.5
 
-POINT_TEXT_LEADING: Final[float] = 12.25
+POINT_TEXT_LEADING: Final[float] = 12
 
-POINT_GAP: Final[float] = 2.7 * mm
+POINT_GAP: Final[float] = 2.6 * mm
 
 
 # ============================================================
 # TAKEAWAY
 # ============================================================
 
-TAKEAWAY_SIZE: Final[float] = 10.25
+TAKEAWAY_SIZE: Final[float] = 10.5
 
-TAKEAWAY_LEADING: Final[float] = 12.25
+TAKEAWAY_LEADING: Final[float] = 12
 
 TAKEAWAY_TOP_GAP: Final[float] = 3.2 * mm
 
@@ -135,13 +135,13 @@ TAKEAWAY_TOP_GAP: Final[float] = 3.2 * mm
 # Keep enough side padding for clean reading while making
 # better use of the large editorial boxes.
 
-EDITORIAL_PADDING_X: Final[float] = 4.5 * mm
+EDITORIAL_PADDING_X: Final[float] = 4 * mm
 
 EDITORIAL_PADDING_Y: Final[float] = 3.5 * mm
 
-EDITORIAL_CONTENT_GAP: Final[float] = 2.8 * mm
+EDITORIAL_CONTENT_GAP: Final[float] = 2.6 * mm
 
-EDITORIAL_HEADING_HEIGHT: Final[float] = 6 * mm
+EDITORIAL_HEADING_HEIGHT: Final[float] = 5.5 * mm
 
 
 # ============================================================

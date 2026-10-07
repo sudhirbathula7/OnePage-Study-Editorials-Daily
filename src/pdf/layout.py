@@ -42,7 +42,7 @@ SHOW_FOOTER = True
 # Preserve the compact header/footer proportions used by the
 # existing project.
 
-HEADER_HEIGHT = 12 * mm
+HEADER_HEIGHT = 14 * mm
 FOOTER_HEIGHT = 6 * mm
 
 
