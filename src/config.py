@@ -1,8 +1,10 @@
 from __future__ import annotations
-import src.branding as BRAND
+
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
+
+import src.branding as BRAND
 
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
@@ -22,6 +24,7 @@ PROJECT_VERSION: Final[str] = "1.0"
 
 DEBUG: Final[bool] = True
 
+
 # ============================================================
 # FILES
 # ============================================================
@@ -30,24 +33,24 @@ INPUT_FILENAME: Final[str] = "INPUT.json"
 
 OUTPUT_FOLDER: Final[str] = "output"
 
-PREVIEW_FOLDER: Final[str] = "output/previews"
-
-PREVIEW_FILENAME: Final[str] = "header_preview.pdf"
-
 
 # ============================================================
 # ROOT PATHS
 # ============================================================
 
-PROJECT_ROOT: Final[Path] = Path(__file__).resolve().parent.parent
+PROJECT_ROOT: Final[Path] = (
+    Path(__file__).resolve().parent.parent
+)
 
-INPUT_PATH: Final[Path] = PROJECT_ROOT / INPUT_FILENAME
-
-OUTPUT_PATH: Final[Path] = PROJECT_ROOT / OUTPUT_FOLDER
-
-PREVIEW_PATH: Final[Path] = (
+INPUT_PATH: Final[Path] = (
     PROJECT_ROOT
-    / PREVIEW_FOLDER
+    / "input_processing"
+    / INPUT_FILENAME
+)
+
+OUTPUT_PATH: Final[Path] = (
+    PROJECT_ROOT
+    / OUTPUT_FOLDER
 )
 
 
@@ -82,20 +85,21 @@ CONTENT_HEIGHT: Final[float] = (
 
 
 # ============================================================
-# CONTENT COUNTS
+# EDITORIAL STUDY
 # ============================================================
 
-KNOWLEDGE_POINT_COUNT: Final[int] = 5
+# The OnePage Study format is designed around four
+# short editorials on one A4 page.
+#
+# This is a PDF layout target, not an input restriction.
+# The input pipeline can still accept fewer editorials.
 
-# Recall Anchors remain internal highlighting terms.
-# They are no longer displayed in the Curiosity box.
-RECALL_ANCHOR_COUNT: Final[int] = 5
+EDITORIALS_PER_PAGE: Final[int] = 4
 
-# Concept Unfold contains one underlying concept
-# followed by exactly three consequences.
-CONCEPT_UNFOLD_CONSEQUENCE_COUNT: Final[int] = 3
+POINTS_PER_EDITORIAL: Final[int] = 4
 
-MCQ_COUNT: Final[int] = 3
+ANCHORS_PER_EDITORIAL: Final[int] = 4
+
 
 # ============================================================
 # PAGE OBJECT
@@ -103,17 +107,12 @@ MCQ_COUNT: Final[int] = 3
 
 @dataclass(frozen=True)
 class PageDimensions:
-
     width: float = PAGE_WIDTH
-
     height: float = PAGE_HEIGHT
 
     margin_left: float = PAGE_MARGIN_LEFT
-
     margin_right: float = PAGE_MARGIN_RIGHT
-
     margin_top: float = PAGE_MARGIN_TOP
-
     margin_bottom: float = PAGE_MARGIN_BOTTOM
 
     @property

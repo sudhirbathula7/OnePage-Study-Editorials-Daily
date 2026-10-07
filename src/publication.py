@@ -15,27 +15,48 @@ from src.config import (
 
 
 # ============================================================
-# PUBLICATION IDENTITY
+# ONEPAGE STUDY • EDITORIALS DAILY
+# PUBLICATION METADATA
 # ============================================================
 
-TELEGRAM_HANDLE: Final[str] = "@upscissueswithkumar"
+
+# ============================================================
+# PRODUCT IDENTITY
+# ============================================================
+
+# Master brand:
+# UPSC Anchor with Kumar
+#
+# Product:
+# ONEPAGE STUDY • EDITORIALS DAILY
+#
+# Edition example:
+# UAK-ED-261007
+#
+# PDF example:
+# UAK_Editorials_Daily_261007.pdf
+
+EDITION_PREFIX: Final[str] = "UAK-ED"
+
+PDF_FILENAME_PREFIX: Final[str] = (
+    "UAK_Editorials_Daily"
+)
+
+
+# ============================================================
+# PUBLIC CHANNELS
+# ============================================================
+
+TELEGRAM_HANDLE: Final[str] = (
+    "@upscanchorwithkumar"
+)
 
 # Keep empty until the final website/domain is confirmed.
 WEBSITE: Final[str] = ""
 
-EDITION_PREFIX: Final[str] = "UAK"
-
-STANDARD_PDF_FILENAME: Final[str] = (
-    "UPSC_Anchor_with_Kumar.pdf"
-)
-
-PRO_PDF_FILENAME: Final[str] = (
-    "UPSC_Anchor_with_Kumar_Pro.pdf"
-)
-
 
 # ============================================================
-# INPUT PATH
+# PROJECT PATHS
 # ============================================================
 
 PROJECT_ROOT: Final[Path] = (
@@ -47,6 +68,11 @@ INPUT_JSON_PATH: Final[Path] = (
     / "input_processing"
     / "INPUT.json"
 )
+
+
+# ============================================================
+# DATE FORMAT
+# ============================================================
 
 PUBLICATION_DATE_FORMAT: Final[str] = (
     "%d %B %Y"
@@ -68,7 +94,9 @@ class PublicationMetadata:
 
     publication_date: str
     publication_date_iso: str
+
     edition_code: str
+    pdf_filename: str
 
     telegram_handle: str
     website: str
@@ -80,14 +108,15 @@ class PublicationMetadata:
 
 def _load_input_metadata() -> tuple[str, str]:
     """
-    Load the publication date from validated INPUT.json.
+    Load and validate the publication date from INPUT.json.
 
-    Returns:
+    Expected examples:
+
         publication_date:
-            Example: 30 July 2026
+            07 October 2026
 
         publication_date_iso:
-            Example: 2026-07-30
+            2026-10-07
     """
 
     try:
@@ -99,44 +128,62 @@ def _load_input_metadata() -> tuple[str, str]:
 
     except FileNotFoundError as exc:
         raise FileNotFoundError(
-            "INPUT.json was not found. Run the text-to-JSON "
-            f"converter first:\n{INPUT_JSON_PATH}"
+            "INPUT.json was not found.\n"
+            "Run the text-to-JSON converter first:\n"
+            f"{INPUT_JSON_PATH}"
         ) from exc
 
     except json.JSONDecodeError as exc:
         raise ValueError(
             "INPUT.json contains invalid JSON at "
-            f"line {exc.lineno}, column {exc.colno}: "
+            f"line {exc.lineno}, "
+            f"column {exc.colno}: "
             f"{exc.msg}"
         ) from exc
 
     except OSError as exc:
         raise OSError(
-            f"Unable to read INPUT.json: {exc}"
+            "Unable to read INPUT.json: "
+            f"{exc}"
         ) from exc
 
-    if not isinstance(data, dict):
+    if not isinstance(
+        data,
+        dict,
+    ):
         raise ValueError(
             "INPUT.json root must be a JSON object."
         )
 
     publication_date = str(
-        data.get("publication_date", "")
+        data.get(
+            "publication_date",
+            "",
+        )
     ).strip()
 
     publication_date_iso = str(
-        data.get("publication_date_iso", "")
+        data.get(
+            "publication_date_iso",
+            "",
+        )
     ).strip()
 
     if not publication_date:
         raise ValueError(
-            "INPUT.json is missing 'publication_date'."
+            "INPUT.json is missing "
+            "'publication_date'."
         )
 
     if not publication_date_iso:
         raise ValueError(
-            "INPUT.json is missing 'publication_date_iso'."
+            "INPUT.json is missing "
+            "'publication_date_iso'."
         )
+
+    # --------------------------------------------------------
+    # VALIDATE DISPLAY DATE
+    # --------------------------------------------------------
 
     try:
         parsed_display_date = datetime.strptime(
@@ -146,10 +193,14 @@ def _load_input_metadata() -> tuple[str, str]:
 
     except ValueError as exc:
         raise ValueError(
-            "INPUT.json publication_date must use the "
-            "format 'DD Month YYYY', for example "
-            "'30 July 2026'."
+            "INPUT.json publication_date must use "
+            "the format 'DD Month YYYY', for example "
+            "'07 October 2026'."
         ) from exc
+
+    # --------------------------------------------------------
+    # VALIDATE ISO DATE
+    # --------------------------------------------------------
 
     try:
         parsed_iso_date = datetime.strptime(
@@ -163,14 +214,23 @@ def _load_input_metadata() -> tuple[str, str]:
             "the format 'YYYY-MM-DD'."
         ) from exc
 
+    # --------------------------------------------------------
+    # BOTH DATES MUST REPRESENT THE SAME DAY
+    # --------------------------------------------------------
+
     if (
         parsed_display_date.date()
         != parsed_iso_date.date()
     ):
         raise ValueError(
-            "publication_date and publication_date_iso "
-            "represent different dates."
+            "publication_date and "
+            "publication_date_iso represent "
+            "different dates."
         )
+
+    # --------------------------------------------------------
+    # NORMALIZE
+    # --------------------------------------------------------
 
     normalized_display_date = (
         parsed_display_date.strftime(
@@ -191,18 +251,83 @@ def _load_input_metadata() -> tuple[str, str]:
 
 
 # ============================================================
+# EDITION CODE
+# ============================================================
+
+def build_edition_code(
+    publication_date_iso: str,
+) -> str:
+    """
+    Build the Editorials Daily edition code.
+
+    Example:
+
+        2026-10-07
+        ↓
+        UAK-ED-261007
+    """
+
+    parsed_date = datetime.strptime(
+        publication_date_iso,
+        "%Y-%m-%d",
+    )
+
+    date_code = parsed_date.strftime(
+        "%y%m%d"
+    )
+
+    return (
+        f"{EDITION_PREFIX}-"
+        f"{date_code}"
+    )
+
+
+# ============================================================
+# PDF FILENAME
+# ============================================================
+
+def build_pdf_filename(
+    publication_date_iso: str,
+) -> str:
+    """
+    Build the Editorials Daily PDF filename.
+
+    Example:
+
+        2026-10-07
+        ↓
+        UAK_Editorials_Daily_261007.pdf
+    """
+
+    parsed_date = datetime.strptime(
+        publication_date_iso,
+        "%Y-%m-%d",
+    )
+
+    date_code = parsed_date.strftime(
+        "%y%m%d"
+    )
+
+    return (
+        f"{PDF_FILENAME_PREFIX}_"
+        f"{date_code}.pdf"
+    )
+
+
+# ============================================================
 # METADATA FACTORY
 # ============================================================
 
 def build_publication_metadata() -> PublicationMetadata:
     """
-    Create one shared metadata object from INPUT.json.
+    Create the shared publication metadata for
+    OnePage Study • Editorials Daily.
 
-    The entered publication date controls:
-    - the date shown in both PDF headers;
-    - the edition code;
-    - repository issue IDs;
-    - the daily archive folder.
+    The publication date entered in INPUT.json controls:
+
+    - the date shown in the PDF header;
+    - the UAK-ED edition code;
+    - the generated PDF filename.
     """
 
     (
@@ -210,27 +335,32 @@ def build_publication_metadata() -> PublicationMetadata:
         publication_date_iso,
     ) = _load_input_metadata()
 
-    parsed_date = datetime.strptime(
-        publication_date_iso,
-        "%Y-%m-%d",
+    edition_code = build_edition_code(
+        publication_date_iso
     )
 
-    edition_code = (
-        f"{EDITION_PREFIX}-"
-        f"{parsed_date.strftime('%y%m%d')}"
+    pdf_filename = build_pdf_filename(
+        publication_date_iso
     )
 
     return PublicationMetadata(
         project_name=PROJECT_NAME,
         project_version=PROJECT_VERSION,
+
         title=PUBLICATION_TITLE,
         subtitle=PUBLICATION_SUBTITLE,
+
+        # Master brand remains UPSC Anchor with Kumar.
         footer_brand=PUBLICATION_SUBTITLE,
+
         publication_date=publication_date,
         publication_date_iso=(
             publication_date_iso
         ),
+
         edition_code=edition_code,
+        pdf_filename=pdf_filename,
+
         telegram_handle=TELEGRAM_HANDLE,
         website=WEBSITE,
     )

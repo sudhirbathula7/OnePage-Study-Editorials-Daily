@@ -16,3 +16,6 @@ INPUT_DATA_BACKUP.txt
 INPUT_DATA_TEST_BACKUP.txt
 INPUT_DATA_PRODUCTION_BACKUP.txt
 project_files.txt
+# Generated final outputs
+output/*.pdf
+output/*.png

@@ -1,53 +1,61 @@
 from __future__ import annotations
 
+import math
 from pathlib import Path
 
-from src.components.curiosity_box import (
-    CuriosityData,
-    draw_curiosity_box,
-)
+from reportlab.lib.units import mm
+
 from src.components.footer import (
     FooterData,
     draw_footer,
-)
-from src.components.gs_mapping import (
-    GSMappingItem,
-    draw_gs_mapping,
 )
 from src.components.header import (
     HeaderData,
     draw_header,
 )
-from src.components.key_takeaway import (
-    KeyTakeawayData,
-    draw_key_takeaway,
-)
-from src.components.knowledge_points import (
-    KnowledgePoint,
-    KnowledgePointsData,
-    draw_knowledge_points,
-)
-from src.components.concept_unfold import (
-    ConceptUnfoldConsequence,
-    ConceptUnfoldData,
-    draw_concept_unfold,
-)
 from src.knowledge_engine.knowledge_loader import (
-    TopicRecord,
-    load_topics,
+    EditorialRecord,
+    EditorialStudyData,
+    load_editorial_study_data,
 )
-from src.pdf.compact_layout import (
+from src.pdf.helpers import (
+    draw_paragraph,
+    draw_text,
+    fit_font_size,
+    make_point_paragraph,
+    make_takeaway_paragraph,
+    measure_paragraph,
+)
+from src.pdf.layout import (
+    SHOW_EDITORIAL_BOXES,
     SHOW_FOOTER,
     SHOW_HEADER,
-    CompactIssueLayout,
-    draw_compact_box,
-    draw_compact_vertical_divider,
-    get_compact_page_layout,
+    draw_editorial_box,
+    get_page_layout,
 )
 from src.pdf.page_setup import (
+    Rect,
     begin_page,
     create_canvas,
     finish_page,
+)
+from src.pdf.theme import (
+    DARK_GREY,
+    EDITORIAL_GS_SIZE,
+    EDITORIAL_HEADING_SIZE,
+    EDITORIAL_PADDING_X,
+    EDITORIAL_PADDING_Y,
+    FONT_BOLD,
+    MIN_POINT_TEXT_LEADING,
+    MIN_POINT_TEXT_SIZE,
+    MIN_TAKEAWAY_LEADING,
+    MIN_TAKEAWAY_SIZE,
+    POINT_GAP,
+    POINT_TEXT_LEADING,
+    POINT_TEXT_SIZE,
+    TAKEAWAY_LEADING,
+    TAKEAWAY_SIZE,
+    TEXT_BLACK,
 )
 from src.publication import (
     PublicationMetadata,
@@ -56,142 +64,543 @@ from src.publication import (
 
 
 # ============================================================
-# NORMAL PDF OPTIONS
+# ONEPAGE STUDY • EDITORIALS DAILY
+# PDF GENERATOR
 # ============================================================
-
-# False = hide Recall Anchors in the Normal PDF.
-# True  = show Recall Anchors again in the Normal PDF.
-SHOW_RECALL_ANCHORS = False
 
 
 # ============================================================
-# SINGLE ISSUE RENDERER
+# EDITORIAL SPACING
 # ============================================================
 
-def _draw_compact_issue(
+# Small tab-like indent for the editorial heading.
+HEADING_LEFT_INDENT = 2 * mm
+
+# Extra breathing room between the top of the editorial box
+# and the heading.
+BOX_TO_HEADING_GAP = 2 * mm
+
+# Space between editorial heading and Point 1.
+HEADING_TO_FIRST_POINT_GAP = 4 * mm
+
+# Space between Point 4 and the Takeaway.
+LAST_POINT_TO_TAKEAWAY_GAP = 3 * mm
+
+
+# ============================================================
+# EDITORIAL FIT SETTINGS
+# ============================================================
+
+POINT_SIZE_STEP = 0.25
+POINT_LEADING_STEP = 0.25
+
+TAKEAWAY_SIZE_STEP = 0.25
+TAKEAWAY_LEADING_STEP = 0.25
+
+
+# ============================================================
+# EDITORIAL HEADING
+# ============================================================
+
+def _draw_editorial_heading(
     canvas,
-    layout: CompactIssueLayout,
-    topic: TopicRecord,
+    rect: Rect,
+    editorial: EditorialRecord,
+) -> float:
+    """
+    Draw:
+
+        India's Energy Dilemma                    GS II
+
+    Editorial numbering is intentionally hidden.
+
+    Returns the Y coordinate from which Point 1 should begin.
+    """
+
+    # --------------------------------------------------------
+    # HEADING POSITION
+    # --------------------------------------------------------
+
+    heading_x = (
+        rect.x
+        + HEADING_LEFT_INDENT
+    )
+
+    heading_top = (
+        rect.top
+        - BOX_TO_HEADING_GAP
+    )
+
+    # --------------------------------------------------------
+    # GS PAPER
+    # --------------------------------------------------------
+
+    gs_text = (
+        editorial.gs_paper.strip()
+    )
+
+    gs_width = 13 * mm
+
+    heading_gap = 2 * mm
+
+    fitted_gs_size = fit_font_size(
+        text=gs_text,
+        font_name=FONT_BOLD,
+        preferred_size=EDITORIAL_GS_SIZE,
+        available_width=gs_width,
+        minimum_size=5.5,
+    )
+
+    # --------------------------------------------------------
+    # EDITORIAL HEADING
+    # --------------------------------------------------------
+
+    heading_width = (
+        rect.right
+        - heading_x
+        - gs_width
+        - heading_gap
+    )
+
+    fitted_heading_size = fit_font_size(
+        text=editorial.heading,
+        font_name=FONT_BOLD,
+        preferred_size=EDITORIAL_HEADING_SIZE,
+        available_width=heading_width,
+        minimum_size=9.0,
+    )
+
+    baseline = (
+        heading_top
+        - fitted_heading_size
+    )
+
+    draw_text(
+        canvas=canvas,
+        text=editorial.heading,
+        x=heading_x,
+        y=baseline,
+        font_name=FONT_BOLD,
+        font_size=fitted_heading_size,
+        color=TEXT_BLACK,
+    )
+
+    # --------------------------------------------------------
+    # GS PAPER
+    # --------------------------------------------------------
+
+    canvas.saveState()
+
+    canvas.setFillColor(
+        DARK_GREY
+    )
+
+    canvas.setFont(
+        FONT_BOLD,
+        fitted_gs_size,
+    )
+
+    canvas.drawRightString(
+        rect.right,
+        baseline,
+        gs_text,
+    )
+
+    canvas.restoreState()
+
+    # --------------------------------------------------------
+    # POINT 1 START
+    # --------------------------------------------------------
+
+    return (
+        baseline
+        - HEADING_TO_FIRST_POINT_GAP
+    )
+
+
+# ============================================================
+# EDITORIAL CONTENT MEASUREMENT
+# ============================================================
+
+def _measure_editorial_content(
+    editorial: EditorialRecord,
+    available_width: float,
+    point_font_size: float,
+    point_leading: float,
+    takeaway_font_size: float,
+    takeaway_leading: float,
+) -> tuple[
+    tuple,
+    object,
+    float,
+]:
+    """
+    Build the four points and Takeaway and calculate
+    their total required height.
+    """
+
+    point_paragraphs = tuple(
+        make_point_paragraph(
+            number=point.number,
+            text=point.text,
+            anchor=point.anchor,
+            font_size=point_font_size,
+            leading=point_leading,
+        )
+        for point in editorial.points
+    )
+
+    takeaway_paragraph = (
+        make_takeaway_paragraph(
+            editorial.takeaway,
+            font_size=takeaway_font_size,
+            leading=takeaway_leading,
+        )
+    )
+
+    total_height = 0.0
+
+    # --------------------------------------------------------
+    # POINTS 1–4
+    # --------------------------------------------------------
+
+    for index, paragraph in enumerate(
+        point_paragraphs
+    ):
+        _, paragraph_height = (
+            measure_paragraph(
+                paragraph,
+                available_width,
+            )
+        )
+
+        total_height += (
+            paragraph_height
+        )
+
+        if (
+            index
+            < len(point_paragraphs) - 1
+        ):
+            total_height += (
+                POINT_GAP
+            )
+
+    # --------------------------------------------------------
+    # POINT 4 → TAKEAWAY
+    # --------------------------------------------------------
+
+    _, takeaway_height = (
+        measure_paragraph(
+            takeaway_paragraph,
+            available_width,
+        )
+    )
+
+    total_height += (
+        LAST_POINT_TO_TAKEAWAY_GAP
+        + takeaway_height
+    )
+
+    return (
+        point_paragraphs,
+        takeaway_paragraph,
+        total_height,
+    )
+
+
+# ============================================================
+# AUTOMATIC EDITORIAL FITTING
+# ============================================================
+
+def _fit_editorial_content(
+    editorial: EditorialRecord,
+    available_width: float,
+    available_height: float,
+):
+    """
+    Use the preferred typography whenever possible.
+
+    If an editorial is unusually long, reduce typography
+    gradually until it fits.
+
+    This is only a PDF rendering safeguard and does not impose
+    content word-count restrictions.
+    """
+
+    point_size = (
+        POINT_TEXT_SIZE
+    )
+
+    point_leading = (
+        POINT_TEXT_LEADING
+    )
+
+    takeaway_size = (
+        TAKEAWAY_SIZE
+    )
+
+    takeaway_leading = (
+        TAKEAWAY_LEADING
+    )
+
+    while True:
+
+        (
+            point_paragraphs,
+            takeaway_paragraph,
+            total_height,
+        ) = _measure_editorial_content(
+            editorial=editorial,
+            available_width=available_width,
+            point_font_size=point_size,
+            point_leading=point_leading,
+            takeaway_font_size=takeaway_size,
+            takeaway_leading=takeaway_leading,
+        )
+
+        # ----------------------------------------------------
+        # FITS
+        # ----------------------------------------------------
+
+        if total_height <= available_height:
+            return (
+                point_paragraphs,
+                takeaway_paragraph,
+            )
+
+        changed = False
+
+        # ----------------------------------------------------
+        # POINT FONT
+        # ----------------------------------------------------
+
+        if (
+            point_size
+            > MIN_POINT_TEXT_SIZE
+        ):
+            point_size = max(
+                MIN_POINT_TEXT_SIZE,
+                point_size
+                - POINT_SIZE_STEP,
+            )
+
+            changed = True
+
+        # ----------------------------------------------------
+        # POINT LEADING
+        # ----------------------------------------------------
+
+        if (
+            point_leading
+            > MIN_POINT_TEXT_LEADING
+        ):
+            point_leading = max(
+                MIN_POINT_TEXT_LEADING,
+                point_leading
+                - POINT_LEADING_STEP,
+            )
+
+            changed = True
+
+        # ----------------------------------------------------
+        # TAKEAWAY FONT
+        # ----------------------------------------------------
+
+        if (
+            takeaway_size
+            > MIN_TAKEAWAY_SIZE
+        ):
+            takeaway_size = max(
+                MIN_TAKEAWAY_SIZE,
+                takeaway_size
+                - TAKEAWAY_SIZE_STEP,
+            )
+
+            changed = True
+
+        # ----------------------------------------------------
+        # TAKEAWAY LEADING
+        # ----------------------------------------------------
+
+        if (
+            takeaway_leading
+            > MIN_TAKEAWAY_LEADING
+        ):
+            takeaway_leading = max(
+                MIN_TAKEAWAY_LEADING,
+                takeaway_leading
+                - TAKEAWAY_LEADING_STEP,
+            )
+
+            changed = True
+
+        # ----------------------------------------------------
+        # CANNOT FIT
+        # ----------------------------------------------------
+
+        if not changed:
+            raise ValueError(
+                "\nEditorial content does not fit inside "
+                "its OnePage Study box even at the minimum "
+                "PDF typography.\n\n"
+                f"Editorial: {editorial.heading}\n\n"
+                "The editorial content has not been changed. "
+                "Shorten the content slightly or adjust the "
+                "PDF layout."
+            )
+
+
+# ============================================================
+# SINGLE EDITORIAL
+# ============================================================
+
+def _draw_editorial(
+    canvas,
+    rect: Rect,
+    editorial: EditorialRecord,
 ) -> None:
-    # --------------------------------------------------------
-    # SECTION BOXES
-    # --------------------------------------------------------
+    """
+    Draw one editorial:
 
-    draw_compact_box(
-        canvas=canvas,
-        rect=layout.question_panel,
-    )
+        Heading                              GS II
 
-    draw_compact_box(
-        canvas=canvas,
-        rect=layout.knowledge_points,
-    )
+        1. Point
+        2. Point
+        3. Point
+        4. Point
 
-    draw_compact_box(
-        canvas=canvas,
-        rect=layout.concept_unfold,
-    )
+             Takeaway
 
-    draw_compact_box(
-        canvas=canvas,
-        rect=layout.takeaway,
-    )
+    The Core Question remains hidden.
 
-    # Divider between question and GS Mapping.
-    draw_compact_vertical_divider(
-        canvas=canvas,
-        x=layout.gs_mapping.x,
-        y_bottom=layout.question_panel.y + 2,
-        y_top=layout.question_panel.top - 2,
-    )
+    Recall Anchors are bolded inside their corresponding
+    points.
+
+    Editorial numbering is not displayed.
+    """
 
     # --------------------------------------------------------
-    # TODAY'S QUESTION + OPTIONAL RECALL ANCHORS
+    # OUTER BOX
     # --------------------------------------------------------
 
-    recall_anchors = (
-        topic.recall_anchors
-        if SHOW_RECALL_ANCHORS
-        else ()
-    )
+    if SHOW_EDITORIAL_BOXES:
+        draw_editorial_box(
+            canvas=canvas,
+            rect=rect,
+        )
 
-    draw_curiosity_box(
-        canvas=canvas,
-        rect=layout.curiosity_box,
-        data=CuriosityData(
-            question=topic.todays_question,
-            anchors=recall_anchors,
+    # --------------------------------------------------------
+    # INNER CONTENT AREA
+    # --------------------------------------------------------
+
+    content_rect = Rect(
+        x=(
+            rect.x
+            + EDITORIAL_PADDING_X
         ),
-        compact=True,
-    )
-
-    # --------------------------------------------------------
-    # GS MAPPING
-    # --------------------------------------------------------
-
-    draw_gs_mapping(
-        canvas=canvas,
-        rect=layout.gs_mapping,
-        items=(
-            GSMappingItem(
-                paper=topic.gs_mapping.paper,
-                subject=topic.gs_mapping.subject,
-                topic=topic.gs_mapping.syllabus,
+        y=(
+            rect.y
+            + EDITORIAL_PADDING_Y
+        ),
+        width=max(
+            0,
+            rect.width
+            - (
+                2
+                * EDITORIAL_PADDING_X
             ),
         ),
-        compact=True,
-    )
-
-    # --------------------------------------------------------
-    # KNOWLEDGE POINTS
-    # --------------------------------------------------------
-
-    draw_knowledge_points(
-        canvas=canvas,
-        rect=layout.knowledge_points,
-        data=KnowledgePointsData(
-            title="KNOWLEDGE POINTS",
-            points=tuple(
-                KnowledgePoint(
-                    heading=point.heading,
-                    explanation=point.explanation,
-                )
-                for point in topic.knowledge_points
-            ),
-        ),
-    )
-
-        # --------------------------------------------------------
-    # CONCEPT UNFOLD
-    # --------------------------------------------------------
-
-    draw_concept_unfold(
-        canvas=canvas,
-        rect=layout.concept_unfold,
-        data=ConceptUnfoldData(
-            title="CONCEPT UNFOLD",
-            concept=topic.concept_unfold.concept,
-            consequences=tuple(
-                ConceptUnfoldConsequence(
-                    title=consequence.title,
-                    explanation=consequence.explanation,
-                )
-                for consequence
-                in topic.concept_unfold.consequences
+        height=max(
+            0,
+            rect.height
+            - (
+                2
+                * EDITORIAL_PADDING_Y
             ),
         ),
     )
 
     # --------------------------------------------------------
-    # KEY TAKEAWAY
+    # HEADING
     # --------------------------------------------------------
 
-    draw_key_takeaway(
+    body_top = (
+        _draw_editorial_heading(
+            canvas=canvas,
+            rect=content_rect,
+            editorial=editorial,
+        )
+    )
+
+    # --------------------------------------------------------
+    # AVAILABLE BODY HEIGHT
+    # --------------------------------------------------------
+
+    body_height = max(
+        0,
+        body_top
+        - content_rect.y,
+    )
+
+    # --------------------------------------------------------
+    # FIT CONTENT
+    # --------------------------------------------------------
+
+    (
+        point_paragraphs,
+        takeaway_paragraph,
+    ) = _fit_editorial_content(
+        editorial=editorial,
+        available_width=content_rect.width,
+        available_height=body_height,
+    )
+
+    current_top = (
+        body_top
+    )
+
+    # --------------------------------------------------------
+    # POINTS 1–4
+    # --------------------------------------------------------
+
+    for index, paragraph in enumerate(
+        point_paragraphs
+    ):
+
+        current_top = draw_paragraph(
+            canvas=canvas,
+            paragraph=paragraph,
+            x=content_rect.x,
+            top=current_top,
+            available_width=(
+                content_rect.width
+            ),
+        )
+
+        if (
+            index
+            < len(point_paragraphs) - 1
+        ):
+            current_top -= (
+                POINT_GAP
+            )
+
+    # --------------------------------------------------------
+    # POINT 4 → TAKEAWAY
+    # --------------------------------------------------------
+
+    current_top -= (
+        LAST_POINT_TO_TAKEAWAY_GAP
+    )
+
+    draw_paragraph(
         canvas=canvas,
-        rect=layout.takeaway,
-        data=KeyTakeawayData(
-            title="KEY TAKEAWAY",
-            takeaway=topic.key_takeaway,
+        paragraph=takeaway_paragraph,
+        x=content_rect.x,
+        top=current_top,
+        available_width=(
+            content_rect.width
         ),
     )
 
@@ -200,19 +609,24 @@ def _draw_compact_issue(
 # PAGE RENDERER
 # ============================================================
 
-def _draw_compact_page(
+def _draw_editorial_page(
     canvas,
-    top_topic: TopicRecord,
-    bottom_topic: TopicRecord | None,
+    editorials: tuple[EditorialRecord, ...],
     page_number: int,
     total_pages: int,
     metadata: PublicationMetadata,
 ) -> None:
+    """
+    Draw one A4 page containing up to four editorials.
+    """
+
     begin_page(
-        canvas,
+        canvas
     )
 
-    layout = get_compact_page_layout()
+    layout = (
+        get_page_layout()
+    )
 
     # --------------------------------------------------------
     # HEADER
@@ -228,30 +642,25 @@ def _draw_compact_page(
                 publication_date=(
                     metadata.publication_date
                 ),
-                edition_code=metadata.edition_code,
+                edition_code=(
+                    metadata.edition_code
+                ),
             ),
             compact=False,
         )
 
     # --------------------------------------------------------
-    # TOP ISSUE
+    # EDITORIAL GRID
     # --------------------------------------------------------
 
-    _draw_compact_issue(
-        canvas=canvas,
-        layout=layout.top_issue,
-        topic=top_topic,
-    )
-
-    # --------------------------------------------------------
-    # BOTTOM ISSUE
-    # --------------------------------------------------------
-
-    if bottom_topic is not None:
-        _draw_compact_issue(
+    for editorial, editorial_rect in zip(
+        editorials,
+        layout.editorial_rects,
+    ):
+        _draw_editorial(
             canvas=canvas,
-            layout=layout.bottom_issue,
-            topic=bottom_topic,
+            rect=editorial_rect,
+            editorial=editorial,
         )
 
     # --------------------------------------------------------
@@ -263,15 +672,19 @@ def _draw_compact_page(
             canvas=canvas,
             rect=layout.footer,
             data=FooterData(
-                brand_name=metadata.footer_brand,
-                publication_code=metadata.edition_code,
+                brand_name=(
+                    metadata.footer_brand
+                ),
+                publication_code=(
+                    metadata.edition_code
+                ),
                 page_number=page_number,
                 total_pages=total_pages,
             ),
         )
 
     finish_page(
-        canvas,
+        canvas
     )
 
 
@@ -283,17 +696,47 @@ def generate_pdf(
     output_path: Path,
     metadata: PublicationMetadata | None = None,
 ) -> Path:
-    topics = load_topics()
+    """
+    Generate OnePage Study • Editorials Daily.
 
-    if not topics:
+    Target:
+        Four short editorials per A4 page.
+
+    Fewer editorials are supported.
+
+    More than four automatically continue onto additional
+    pages.
+    """
+
+    study_data: EditorialStudyData = (
+        load_editorial_study_data()
+    )
+
+    editorials = (
+        study_data.editorials
+    )
+
+    if not editorials:
         raise ValueError(
-            "No topics were found in INPUT.json."
+            "No editorials were found in INPUT.json."
         )
+
+    # --------------------------------------------------------
+    # METADATA
+    # --------------------------------------------------------
 
     resolved_metadata = (
         metadata
         if metadata is not None
         else build_publication_metadata()
+    )
+
+    # --------------------------------------------------------
+    # OUTPUT PATH
+    # --------------------------------------------------------
+
+    output_path = Path(
+        output_path
     )
 
     output_path.parent.mkdir(
@@ -302,43 +745,75 @@ def generate_pdf(
     )
 
     canvas = create_canvas(
-        str(output_path),
+        output_path
     )
 
-    total_pages = (
-        len(topics) + 1
-    ) // 2
+    # --------------------------------------------------------
+    # FOUR EDITORIALS PER PAGE
+    # --------------------------------------------------------
 
-    for page_index in range(total_pages):
-        top_topic_index = page_index * 2
-        bottom_topic_index = top_topic_index + 1
+    editorials_per_page = 4
 
-        top_topic = topics[top_topic_index]
+    total_pages = math.ceil(
+        len(editorials)
+        / editorials_per_page
+    )
 
-        bottom_topic = (
-            topics[bottom_topic_index]
-            if bottom_topic_index < len(topics)
-            else None
+    # --------------------------------------------------------
+    # DRAW PAGES
+    # --------------------------------------------------------
+
+    for page_index in range(
+        total_pages
+    ):
+
+        start_index = (
+            page_index
+            * editorials_per_page
         )
 
-        _draw_compact_page(
+        end_index = (
+            start_index
+            + editorials_per_page
+        )
+
+        page_editorials = tuple(
+            editorials[
+                start_index:end_index
+            ]
+        )
+
+        _draw_editorial_page(
             canvas=canvas,
-            top_topic=top_topic,
-            bottom_topic=bottom_topic,
-            page_number=page_index + 1,
+            editorials=page_editorials,
+            page_number=(
+                page_index + 1
+            ),
             total_pages=total_pages,
             metadata=resolved_metadata,
         )
+
+    # --------------------------------------------------------
+    # SAVE
+    # --------------------------------------------------------
 
     canvas.save()
 
     return output_path
 
 
+# ============================================================
+# PREVIEW
+# ============================================================
+
 def generate_pdf_preview(
     output_path: Path,
     metadata: PublicationMetadata | None = None,
 ) -> Path:
+    """
+    Preview uses exactly the same renderer as the final PDF.
+    """
+
     return generate_pdf(
         output_path=output_path,
         metadata=metadata,

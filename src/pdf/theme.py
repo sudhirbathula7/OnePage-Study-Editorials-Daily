@@ -8,6 +8,12 @@ from reportlab.lib.units import mm
 
 
 # ============================================================
+# ONEPAGE STUDY • EDITORIALS DAILY
+# PDF THEME
+# ============================================================
+
+
+# ============================================================
 # COLOURS
 # ============================================================
 
@@ -28,6 +34,8 @@ WHITE: Final[Color] = HexColor("#FFFFFF")
 # ============================================================
 # COMPATIBILITY COLOURS
 # ============================================================
+
+# Retained for compatibility with existing components.
 
 NAVY: Final[Color] = HEADING_BLUE
 DARK_NAVY: Final[Color] = HEADING_BLUE
@@ -58,9 +66,17 @@ FONT_BOLD_OBLIQUE: Final[str] = FONT_BOLD_ITALIC
 # HEADER
 # ============================================================
 
+# Existing header appearance remains unchanged.
+
 HEADER_TITLE_SIZE: Final[float] = 19
-HEADER_TITLE_SIZE_FULL: Final[float] = 19
-HEADER_TITLE_SIZE_HALF: Final[float] = 19
+
+HEADER_TITLE_SIZE_FULL: Final[float] = (
+    HEADER_TITLE_SIZE
+)
+
+HEADER_TITLE_SIZE_HALF: Final[float] = (
+    HEADER_TITLE_SIZE
+)
 
 HEADER_SUBTITLE_SIZE: Final[float] = 9
 HEADER_DATE_LABEL_SIZE: Final[float] = 9
@@ -71,131 +87,72 @@ HEADER_RADIUS: Final[float] = 2 * mm
 
 
 # ============================================================
-# QUESTION
+# EDITORIAL HEADING
 # ============================================================
 
-QUESTION_SIZE: Final[float] = 14
-QUESTION_LEADING: Final[float] = 17
+# Stronger visual hierarchy than the first test PDF.
 
-QUESTION_SIZE_FULL: Final[float] = 14
-QUESTION_LEADING_FULL: Final[float] = 17
+EDITORIAL_HEADING_SIZE: Final[float] = 12.5
 
-QUESTION_SIZE_HALF: Final[float] = 14
-QUESTION_LEADING_HALF: Final[float] = 17
+EDITORIAL_GS_SIZE: Final[float] = 7.5
 
-ANCHOR_LABEL_SIZE: Final[float] = 9
-ANCHOR_SIZE: Final[float] = 9
-ANCHOR_TEXT_SIZE: Final[float] = 9
-ANCHOR_LEADING: Final[float] = 11
+EDITORIAL_NUMBER_SIZE: Final[float] = 12
 
 
 # ============================================================
-# SECTION TITLES
+# EDITORIAL POINTS
 # ============================================================
 
-SECTION_TITLE_SIZE: Final[float] = 10
+# Preferred/default typography.
+#
+# The PDF generator can automatically reduce these values
+# when an unusually long editorial needs more space.
 
-SECTION_HEADING_SIZE_FULL: Final[float] = 10
-SECTION_HEADING_SIZE_HALF: Final[float] = 10
+POINT_NUMBER_SIZE: Final[float] = 10.5
 
-# ============================================================
-# SECTION SPACING
-# ============================================================
+POINT_TEXT_SIZE: Final[float] = 10.25
 
-# A: Top border -> section heading/icon
-SECTION_TOP_GAP: Final[float] = 1.6 * mm
+POINT_TEXT_LEADING: Final[float] = 12.25
 
-# B: Section heading -> first content
-SECTION_CONTENT_GAP: Final[float] = 2.0 * mm
-
-# Physical height of heading/icon area
-SECTION_HEADING_HEIGHT: Final[float] = 4.2 * mm
-
-# ============================================================
-# GS MAPPING
-# ============================================================
-
-GS_PAPER_SIZE: Final[float] = 10
-GS_SUBJECT_SIZE: Final[float] = 9
-GS_TOPIC_SIZE: Final[float] = 8
-GS_TOPIC_LEADING: Final[float] = 10
+POINT_GAP: Final[float] = 2.7 * mm
 
 
 # ============================================================
-# KNOWLEDGE POINTS
+# TAKEAWAY
 # ============================================================
 
-KNOWLEDGE_NUMBER_SIZE: Final[float] = 13
-KNOWLEDGE_NUMBER_SIZE_FULL: Final[float] = 13
-KNOWLEDGE_NUMBER_SIZE_HALF: Final[float] = 13
+TAKEAWAY_SIZE: Final[float] = 10.25
 
-KNOWLEDGE_HEADING_SIZE: Final[float] = 10
+TAKEAWAY_LEADING: Final[float] = 12.25
 
-KNOWLEDGE_TEXT_SIZE: Final[float] = 9
-KNOWLEDGE_LEADING: Final[float] = 10
-
-KNOWLEDGE_TEXT_SIZE_FULL: Final[float] = 9
-KNOWLEDGE_LEADING_FULL: Final[float] = 10
-
-KNOWLEDGE_TEXT_SIZE_HALF: Final[float] = 9
-KNOWLEDGE_LEADING_HALF: Final[float] = 10
+TAKEAWAY_TOP_GAP: Final[float] = 3.2 * mm
 
 
 # ============================================================
-# CONCEPT UNFOLD
+# EDITORIAL BOX SPACING
 # ============================================================
 
-CONCEPT_UNFOLD_SIZE: Final[float] = 9
-CONCEPT_UNFOLD_LEADING: Final[float] = 10
+# Keep enough side padding for clean reading while making
+# better use of the large editorial boxes.
 
-CONCEPT_UNFOLD_SIZE_FULL: Final[float] = 9
-CONCEPT_UNFOLD_LEADING_FULL: Final[float] = 10
+EDITORIAL_PADDING_X: Final[float] = 4.5 * mm
 
-CONCEPT_UNFOLD_SIZE_HALF: Final[float] = 9
-CONCEPT_UNFOLD_LEADING_HALF: Final[float] = 10
+EDITORIAL_PADDING_Y: Final[float] = 3.5 * mm
 
-# ============================================================
-# KEY TAKEAWAY
-# ============================================================
+EDITORIAL_CONTENT_GAP: Final[float] = 2.8 * mm
 
-TAKEAWAY_SIZE: Final[float] = 9
-TAKEAWAY_LEADING: Final[float] = 11
-
-TAKEAWAY_SIZE_FULL: Final[float] = 9
-TAKEAWAY_LEADING_FULL: Final[float] = 11
-
-TAKEAWAY_SIZE_HALF: Final[float] = 9
-TAKEAWAY_LEADING_HALF: Final[float] = 11
+EDITORIAL_HEADING_HEIGHT: Final[float] = 6 * mm
 
 
 # ============================================================
-# MAINS ANSWER
+# PAGE / GRID SPACING
 # ============================================================
 
-MAINS_QUESTION_SIZE: Final[float] = 9.5
-MAINS_TEXT_SIZE: Final[float] = 8
+PAGE_SECTION_GAP: Final[float] = 1.2 * mm
 
-MAINS_LEADING: Final[float] = 9.5
-MAINS_TEXT_LEADING: Final[float] = 9.5
+EDITORIAL_COLUMN_GAP: Final[float] = 1.2 * mm
 
-MAINS_WORD_NOTE_SIZE: Final[float] = 6
-
-
-# ============================================================
-# MCQS
-# ============================================================
-
-MCQ_QUESTION_SIZE: Final[float] = 9
-MCQ_OPTION_SIZE: Final[float] = 9
-
-MCQ_LEADING: Final[float] = 10.5
-MCQ_ANSWER_SIZE: Final[float] = 9
-
-# ============================================================
-# FOOTER
-# ============================================================
-
-FOOTER_SIZE: Final[float] = 7
+EDITORIAL_ROW_GAP: Final[float] = 1.2 * mm
 
 
 # ============================================================
@@ -205,27 +162,63 @@ FOOTER_SIZE: Final[float] = 7
 BOX_RADIUS: Final[float] = 2 * mm
 
 BOX_BORDER_WIDTH: Final[float] = 0.42
+
 DIVIDER_WIDTH: Final[float] = 0.35
+
+OUTER_BORDER_WIDTH: Final[float] = 0.45
+
+INNER_BORDER_WIDTH: Final[float] = (
+    BOX_BORDER_WIDTH
+)
 
 ICON_STROKE: Final[float] = 1.1
 
-OUTER_BORDER_WIDTH: Final[float] = 0.45
-INNER_BORDER_WIDTH: Final[float] = BOX_BORDER_WIDTH
-ICON_STROKE_WIDTH: Final[float] = ICON_STROKE
+ICON_STROKE_WIDTH: Final[float] = (
+    ICON_STROKE
+)
 
 
 # ============================================================
-# PADDING
+# GENERAL PADDING
 # ============================================================
 
 BOX_PADDING_X: Final[float] = 4 * mm
+
 BOX_PADDING_Y: Final[float] = 3 * mm
+
 TEXT_PADDING: Final[float] = 2 * mm
 
-QUESTION_PADDING_X: Final[float] = 4 * mm
-QUESTION_PADDING_Y: Final[float] = 3 * mm
-
 COLUMN_GAP: Final[float] = 2 * mm
+
+
+# ============================================================
+# FOOTER
+# ============================================================
+
+# Existing footer appearance remains unchanged.
+
+FOOTER_SIZE: Final[float] = 7
+
+
+# ============================================================
+# AUTOMATIC TEXT-FIT LIMITS
+# ============================================================
+
+# These are rendering safeguards only.
+#
+# They do NOT impose word-count rules on the input.
+#
+# Normal editorials should render at the larger preferred
+# sizes above. The generator only moves toward these minimums
+# when the content cannot otherwise fit.
+
+MIN_POINT_TEXT_SIZE: Final[float] = 8.25
+
+MIN_POINT_TEXT_LEADING: Final[float] = 9.5
+
+MIN_TAKEAWAY_SIZE: Final[float] = 8.25
+
+MIN_TAKEAWAY_LEADING: Final[float] = 9.5
 
 
 # ============================================================

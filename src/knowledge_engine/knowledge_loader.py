@@ -1,17 +1,33 @@
 from __future__ import annotations
 
 import json
+
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-INPUT_JSON = PROJECT_ROOT / "input_processing" / "INPUT.json"
+# ============================================================
+# PATHS
+# ============================================================
 
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+INPUT_JSON = (
+    PROJECT_ROOT
+    / "input_processing"
+    / "INPUT.json"
+)
+
+
+# ============================================================
+# ERROR
+# ============================================================
 
 class KnowledgeLoadError(ValueError):
-    """Raised when validated knowledge data cannot be loaded safely."""
+    """
+    Raised when editorial data cannot be loaded safely.
+    """
 
 
 # ============================================================
@@ -19,71 +35,74 @@ class KnowledgeLoadError(ValueError):
 # ============================================================
 
 @dataclass(frozen=True)
-class GSMapping:
-    paper: str
-    subject: str
-    syllabus: str
+class EditorialPointRecord:
+    """
+    One explanatory point inside an editorial.
+
+    The anchor is manually selected from the point text
+    and will later be used for bold highlighting in the PDF.
+    """
+
+    number: int
+    text: str
+    anchor: str
 
 
 @dataclass(frozen=True)
-class KnowledgePointRecord:
+class EditorialRecord:
+    """
+    One complete short editorial study block.
+    """
+
+    editorial_number: int
+
     heading: str
-    explanation: str
 
+    gs_paper: str
 
-@dataclass(frozen=True)
-class ConceptUnfoldConsequence:
-    title: str
-    explanation: str
-
-
-@dataclass(frozen=True)
-class ConceptUnfoldRecord:
-    concept: str
-    consequences: tuple[
-        ConceptUnfoldConsequence,
-        ConceptUnfoldConsequence,
-    ]
-
-
-@dataclass(frozen=True)
-class MCQRecord:
     question: str
-    options: tuple[str, str, str, str]
-    correct_answer: str
-    explanation: str
+
+    points: tuple[
+        EditorialPointRecord,
+        EditorialPointRecord,
+        EditorialPointRecord,
+        EditorialPointRecord,
+    ]
+
+    takeaway: str
+
+    anchors: tuple[
+        str,
+        str,
+        str,
+        str,
+    ]
 
 
 @dataclass(frozen=True)
-class TopicRecord:
-    topic_number: int
-    issue_title: str
-    rating: float
-    editorial_sources: tuple[str, ...]
-    gs_mapping: GSMapping
-    todays_question: str
-    recall_anchors: tuple[
-        str,
-        str,
-        str,
-        str,
-        str,
-    ]
-    knowledge_points: tuple[
-        KnowledgePointRecord,
+class EditorialStudyData:
+    """
+    Complete daily editorial study data.
+
+    The number of editorials is intentionally flexible.
+    A day may contain 1, 2, 3, 4 or more editorials.
+
+    PDF layout decisions are handled later by the
+    rendering layer, not by this loader.
+    """
+
+    publication_date: str
+
+    publication_date_iso: str
+
+    editorials: tuple[
+        EditorialRecord,
         ...
     ]
-    concept_unfold: ConceptUnfoldRecord
-    key_takeaway: str
-    mains_question: str
-    mains_answer: str
-    daily_mcqs: tuple[
-        MCQRecord,
-        ...
-    ]
+
 
 # ============================================================
-# HELPERS
+# BASIC HELPERS
 # ============================================================
 
 def _required(
@@ -91,496 +110,299 @@ def _required(
     key: str,
     context: str,
 ) -> Any:
+    """
+    Return a required value.
+
+    This checks structure only.
+    It does not apply word-count or writing restrictions.
+    """
+
     if key not in mapping:
+
         raise KnowledgeLoadError(
-            f"{context}: missing required field '{key}'."
+            f"{context}: "
+            f"missing required field '{key}'."
         )
 
     return mapping[key]
 
 
-def _require_count(
-    values: list[Any],
-    expected: int,
+def _required_text(
+    mapping: dict[str, Any],
+    key: str,
     context: str,
-) -> list[Any]:
-    if len(values) != expected:
-        raise KnowledgeLoadError(
-            f"{context}: expected {expected} items, found {len(values)}."
-        )
-
-    return values
-
-
-# ============================================================
-# CONCEPT UNFOLD
-# ============================================================
-
-def _load_concept_unfold(
-    raw_concept_unfold: Any,
-    context: str,
-) -> ConceptUnfoldRecord:
+) -> str:
     """
-    Load one selected Concept Unfold.
-
-    Expected JSON structure:
-
-        {
-            "concept": "...",
-            "consequences": [
-                {
-                    "title": "...",
-                    "explanation": "..."
-                },
-                {
-                    "title": "...",
-                    "explanation": "..."
-                },
-                {
-                    "title": "...",
-                    "explanation": "..."
-                }
-            ]
-        }
-
-    Exactly one concept and three consequences are required.
+    Load required text without changing its wording.
     """
 
-    # --------------------------------------------------------
-    # ROOT STRUCTURE
-    # --------------------------------------------------------
+    value = _required(
+        mapping,
+        key,
+        context,
+    )
 
     if not isinstance(
-        raw_concept_unfold,
+        value,
+        str,
+    ):
+        raise KnowledgeLoadError(
+            f"{context}: "
+            f"'{key}' must be text."
+        )
+
+    value = value.strip()
+
+    if not value:
+        raise KnowledgeLoadError(
+            f"{context}: "
+            f"'{key}' cannot be empty."
+        )
+
+    return value
+
+
+# ============================================================
+# POINT LOADER
+# ============================================================
+
+def _load_point(
+    raw: Any,
+    editorial_number: int,
+    position: int,
+) -> EditorialPointRecord:
+
+    context = (
+        f"Editorial {editorial_number}, "
+        f"Point {position}"
+    )
+
+    if not isinstance(
+        raw,
         dict,
     ):
         raise KnowledgeLoadError(
             f"{context}: "
-            "concept_unfold must be an object."
+            "point must be an object."
         )
 
-    # --------------------------------------------------------
-    # CONCEPT
-    # --------------------------------------------------------
-
-    concept = str(
-        _required(
-            raw_concept_unfold,
-            "concept",
-            f"{context} concept unfold",
-        )
-    ).strip()
-
-    if not concept:
-        raise KnowledgeLoadError(
-            f"{context}: "
-            "concept unfold concept cannot be empty."
-        )
-
-    # --------------------------------------------------------
-    # CONSEQUENCES
-    # --------------------------------------------------------
-
-    consequences_raw = _required(
-        raw_concept_unfold,
-        "consequences",
-        f"{context} concept unfold",
+    number = _required(
+        raw,
+        "number",
+        context,
     )
 
     if not isinstance(
-        consequences_raw,
+        number,
+        int,
+    ):
+        raise KnowledgeLoadError(
+            f"{context}: "
+            "'number' must be an integer."
+        )
+
+    text = _required_text(
+        raw,
+        "text",
+        context,
+    )
+
+    anchor = _required_text(
+        raw,
+        "anchor",
+        context,
+    )
+
+    return EditorialPointRecord(
+        number=number,
+        text=text,
+        anchor=anchor,
+    )
+
+
+# ============================================================
+# EDITORIAL LOADER
+# ============================================================
+
+def _load_editorial(
+    raw: Any,
+    position: int,
+) -> EditorialRecord:
+
+    context = f"Editorial {position}"
+
+    if not isinstance(
+        raw,
+        dict,
+    ):
+        raise KnowledgeLoadError(
+            f"{context}: "
+            "editorial must be an object."
+        )
+
+    # --------------------------------------------------------
+    # EDITORIAL NUMBER
+    # --------------------------------------------------------
+
+    editorial_number = _required(
+        raw,
+        "editorial_number",
+        context,
+    )
+
+    if not isinstance(
+        editorial_number,
+        int,
+    ):
+        raise KnowledgeLoadError(
+            f"{context}: "
+            "'editorial_number' must be an integer."
+        )
+
+    # --------------------------------------------------------
+    # BASIC CONTENT
+    # --------------------------------------------------------
+
+    heading = _required_text(
+        raw,
+        "heading",
+        context,
+    )
+
+    gs_paper = _required_text(
+        raw,
+        "gs_paper",
+        context,
+    )
+
+    question = _required_text(
+        raw,
+        "question",
+        context,
+    )
+
+    takeaway = _required_text(
+        raw,
+        "takeaway",
+        context,
+    )
+
+    # --------------------------------------------------------
+    # POINTS
+    # --------------------------------------------------------
+
+    points_raw = _required(
+        raw,
+        "points",
+        context,
+    )
+
+    if not isinstance(
+        points_raw,
         list,
     ):
         raise KnowledgeLoadError(
             f"{context}: "
-            "concept unfold consequences must be a list."
+            "'points' must be a list."
         )
 
-    consequences_raw = _require_count(
-        consequences_raw,
-        3,
-        f"{context} concept unfold consequences",
+    if len(points_raw) != 4:
+        raise KnowledgeLoadError(
+            f"{context}: "
+            "exactly 4 points are required. "
+            f"Found {len(points_raw)}."
+        )
+
+    points = tuple(
+        _load_point(
+            point,
+            editorial_number,
+            point_position,
+        )
+        for point_position, point in enumerate(
+            points_raw,
+            start=1,
+        )
     )
 
-    consequences: list[
-        ConceptUnfoldConsequence
-    ] = []
-
     # --------------------------------------------------------
-    # INDIVIDUAL CONSEQUENCES
+    # ANCHORS
     # --------------------------------------------------------
 
-    for consequence_index, consequence in enumerate(
-        consequences_raw,
-        start=1,
-    ):
-        consequence_context = (
-            f"{context} concept unfold "
-            f"consequence {consequence_index}"
-        )
+    anchors_raw = _required(
+        raw,
+        "anchors",
+        context,
+    )
 
-        if not isinstance(
-            consequence,
-            dict,
-        ):
-            raise KnowledgeLoadError(
-                f"{consequence_context}: "
-                "must be an object."
-            )
-
-        title = str(
-            _required(
-                consequence,
-                "title",
-                consequence_context,
-            )
-        ).strip()
-
-        explanation = str(
-            _required(
-                consequence,
-                "explanation",
-                consequence_context,
-            )
-        ).strip()
-
-        if not title:
-            raise KnowledgeLoadError(
-                f"{consequence_context}: "
-                "title cannot be empty."
-            )
-
-        if not explanation:
-            raise KnowledgeLoadError(
-                f"{consequence_context}: "
-                "explanation cannot be empty."
-            )
-
-        consequences.append(
-            ConceptUnfoldConsequence(
-                title=title,
-                explanation=explanation,
-            )
-        )
-
-    # --------------------------------------------------------
-    # DUPLICATE CONSEQUENCE CHECK
-    # --------------------------------------------------------
-
-    consequence_titles = [
-        consequence.title.casefold()
-        for consequence in consequences
-    ]
-
-    if (
-        len(consequence_titles)
-        != len(set(consequence_titles))
+    if not isinstance(
+        anchors_raw,
+        list,
     ):
         raise KnowledgeLoadError(
             f"{context}: "
-            "concept unfold consequence titles "
-            "must all be different."
+            "'anchors' must be a list."
+        )
+
+    if len(anchors_raw) != 4:
+        raise KnowledgeLoadError(
+            f"{context}: "
+            "exactly 4 anchors are required. "
+            f"Found {len(anchors_raw)}."
+        )
+
+    anchors: list[str] = []
+
+    for anchor_position, anchor in enumerate(
+        anchors_raw,
+        start=1,
+    ):
+
+        if not isinstance(
+            anchor,
+            str,
+        ):
+            raise KnowledgeLoadError(
+                f"{context}, "
+                f"Anchor {anchor_position}: "
+                "must be text."
+            )
+
+        anchor = anchor.strip()
+
+        if not anchor:
+            raise KnowledgeLoadError(
+                f"{context}, "
+                f"Anchor {anchor_position}: "
+                "cannot be empty."
+            )
+
+        anchors.append(
+            anchor
         )
 
     # --------------------------------------------------------
     # FINAL RECORD
     # --------------------------------------------------------
 
-    return ConceptUnfoldRecord(
-        concept=concept,
-        consequences=(
-            consequences[0],
-            consequences[1],
-            consequences[2],
+    return EditorialRecord(
+        editorial_number=editorial_number,
+        heading=heading,
+        gs_paper=gs_paper,
+        question=question,
+        points=(
+            points[0],
+            points[1],
+            points[2],
+            points[3],
         ),
-    )
-
-# ============================================================
-# TOPIC LOADER
-# ============================================================
-
-def _load_topic(
-    raw: dict[str, Any],
-    position: int,
-) -> TopicRecord:
-    context = f"Topic {position}"
-
-    # --------------------------------------------------------
-    # GS MAPPING
-    # --------------------------------------------------------
-
-    gs_raw = _required(
-        raw,
-        "gs_mapping",
-        context,
-    )
-
-    if not isinstance(gs_raw, dict):
-        raise KnowledgeLoadError(
-            f"{context}: gs_mapping must be an object."
-        )
-
-    # --------------------------------------------------------
-    # RECALL ANCHORS
-    # --------------------------------------------------------
-
-    anchors_raw = _require_count(
-        list(
-            _required(
-                raw,
-                "recall_anchors",
-                context,
-            )
+        takeaway=takeaway,
+        anchors=(
+            anchors[0],
+            anchors[1],
+            anchors[2],
+            anchors[3],
         ),
-        5,
-        f"{context} recall anchors",
-    )
-
-    # --------------------------------------------------------
-    # KNOWLEDGE POINTS
-    # --------------------------------------------------------
-
-    points_raw = _require_count(
-        list(
-            _required(
-                raw,
-                "knowledge_points",
-                context,
-            )
-        ),
-        5,
-        f"{context} knowledge points",
-    )
-
-    points = tuple(
-        KnowledgePointRecord(
-            heading=str(
-                _required(
-                    point,
-                    "heading",
-                    f"{context} knowledge point",
-                )
-            ),
-            explanation=str(
-                _required(
-                    point,
-                    "explanation",
-                    f"{context} knowledge point",
-                )
-            ),
-        )
-        for point in points_raw
-    )
-
-    # --------------------------------------------------------
-    # CONCEPT UNFOLD
-    # --------------------------------------------------------
-
-    concept_unfold = _load_concept_unfold(
-        _required(
-            raw,
-            "concept_unfold",
-            context,
-        ),
-        context,
-    )
-
-    # --------------------------------------------------------
-    # MAINS ANSWER
-    # --------------------------------------------------------
-
-    mains_raw = _required(
-        raw,
-        "mains_answer",
-        context,
-    )
-
-    if isinstance(mains_raw, dict):
-        mains_answer = str(
-            mains_raw.get("full_text")
-            or "\n\n".join(
-                mains_raw.get(
-                    "paragraphs",
-                    [],
-                )
-            )
-        ).strip()
-    else:
-        mains_answer = str(
-            mains_raw
-        ).strip()
-
-    # --------------------------------------------------------
-    # MCQs
-    # --------------------------------------------------------
-
-    mcqs_raw = _require_count(
-        list(
-            _required(
-                raw,
-                "daily_mcqs",
-                context,
-            )
-        ),
-        3,
-        f"{context} MCQs",
-    )
-
-    mcqs: list[MCQRecord] = []
-
-    for mcq_index, mcq in enumerate(
-        mcqs_raw,
-        start=1,
-    ):
-        mcq_context = (
-            f"{context} MCQ {mcq_index}"
-        )
-
-        options_raw = _required(
-            mcq,
-            "options",
-            mcq_context,
-        )
-
-        if not isinstance(
-            options_raw,
-            dict,
-        ):
-            raise KnowledgeLoadError(
-                f"{mcq_context}: options must be an object."
-            )
-
-        try:
-            options = (
-                str(options_raw["A"]),
-                str(options_raw["B"]),
-                str(options_raw["C"]),
-                str(options_raw["D"]),
-            )
-        except KeyError as exc:
-            raise KnowledgeLoadError(
-                f"{mcq_context}: options A, B, C and D are required."
-            ) from exc
-
-        mcqs.append(
-            MCQRecord(
-                question=str(
-                    _required(
-                        mcq,
-                        "question",
-                        mcq_context,
-                    )
-                ),
-                options=options,
-                correct_answer=str(
-                    _required(
-                        mcq,
-                        "correct_answer",
-                        mcq_context,
-                    )
-                ).upper(),
-                explanation=str(
-                    _required(
-                        mcq,
-                        "explanation",
-                        mcq_context,
-                    )
-                ),
-            )
-        )
-
-    # --------------------------------------------------------
-    # SOURCES
-    # --------------------------------------------------------
-
-    sources = tuple(
-        str(item)
-        for item in _required(
-            raw,
-            "editorial_sources",
-            context,
-        )
-    )
-
-    # --------------------------------------------------------
-    # FINAL TOPIC RECORD
-    # --------------------------------------------------------
-
-    return TopicRecord(
-        topic_number=int(
-            _required(
-                raw,
-                "topic_number",
-                context,
-            )
-        ),
-        issue_title=str(
-            _required(
-                raw,
-                "issue_title",
-                context,
-            )
-        ),
-        rating=float(
-            _required(
-                raw,
-                "rating",
-                context,
-            )
-        ),
-        editorial_sources=sources,
-        gs_mapping=GSMapping(
-            paper=str(
-                _required(
-                    gs_raw,
-                    "paper",
-                    f"{context} GS mapping",
-                )
-            ),
-            subject=str(
-                _required(
-                    gs_raw,
-                    "subject",
-                    f"{context} GS mapping",
-                )
-            ),
-            syllabus=str(
-                _required(
-                    gs_raw,
-                    "syllabus",
-                    f"{context} GS mapping",
-                )
-            ),
-        ),
-        todays_question=str(
-            _required(
-                raw,
-                "todays_question",
-                context,
-            )
-        ),
-        recall_anchors=tuple(
-            str(item)
-            for item in anchors_raw
-        ),
-        knowledge_points=points,
-        concept_unfold=concept_unfold,
-        key_takeaway=str(
-            _required(
-                raw,
-                "key_takeaway",
-                context,
-            )
-        ),
-        mains_question=str(
-            _required(
-                raw,
-                "mains_question",
-                context,
-            )
-        ),
-        mains_answer=mains_answer,
-        daily_mcqs=tuple(mcqs),
     )
 
 
@@ -588,11 +410,28 @@ def _load_topic(
 # PUBLIC LOADER
 # ============================================================
 
-def load_topics(
+def load_editorial_study_data(
     input_path: Path = INPUT_JSON,
-) -> tuple[TopicRecord, ...]:
+) -> EditorialStudyData:
+    """
+    Load the complete daily editorial study file.
+
+    This loader intentionally does not impose:
+
+    - word limits
+    - sentence limits
+    - heading word counts
+    - question word counts
+    - point word counts
+    - takeaway word counts
+    - anchor word counts
+
+    Those are content-generation considerations,
+    not data-loading rules.
+    """
 
     try:
+
         raw_data = json.loads(
             input_path.read_text(
                 encoding="utf-8-sig"
@@ -600,36 +439,175 @@ def load_topics(
         )
 
     except FileNotFoundError as exc:
+
         raise KnowledgeLoadError(
-            f"Input JSON not found: {input_path}"
+            f"Input JSON not found: "
+            f"{input_path}"
         ) from exc
 
     except json.JSONDecodeError as exc:
+
         raise KnowledgeLoadError(
-            f"Invalid JSON at line {exc.lineno}, "
-            f"column {exc.colno}: {exc.msg}"
+            f"Invalid JSON at line "
+            f"{exc.lineno}, "
+            f"column {exc.colno}: "
+            f"{exc.msg}"
         ) from exc
 
-    topics_raw = raw_data.get("topics")
-
-    if (
-        not isinstance(
-            topics_raw,
-            list,
-        )
-        or not topics_raw
+    if not isinstance(
+        raw_data,
+        dict,
     ):
         raise KnowledgeLoadError(
-            "INPUT.json must contain a non-empty topics list."
+            "INPUT.json root must be an object."
         )
 
-    return tuple(
-        _load_topic(
-            topic,
+    # --------------------------------------------------------
+    # PUBLICATION DATE
+    # --------------------------------------------------------
+
+    publication_date = _required_text(
+        raw_data,
+        "publication_date",
+        "INPUT.json",
+    )
+
+    publication_date_iso = _required_text(
+        raw_data,
+        "publication_date_iso",
+        "INPUT.json",
+    )
+
+    # --------------------------------------------------------
+    # EDITORIALS
+    # --------------------------------------------------------
+
+    editorials_raw = _required(
+        raw_data,
+        "editorials",
+        "INPUT.json",
+    )
+
+    if not isinstance(
+        editorials_raw,
+        list,
+    ):
+        raise KnowledgeLoadError(
+            "INPUT.json: "
+            "'editorials' must be a list."
+        )
+
+    if not editorials_raw:
+        raise KnowledgeLoadError(
+            "INPUT.json must contain "
+            "at least one editorial."
+        )
+
+    editorials = tuple(
+        _load_editorial(
+            editorial,
             position,
         )
-        for position, topic in enumerate(
-            topics_raw,
+        for position, editorial in enumerate(
+            editorials_raw,
             start=1,
         )
+    )
+
+    return EditorialStudyData(
+        publication_date=publication_date,
+        publication_date_iso=publication_date_iso,
+        editorials=editorials,
+    )
+
+
+# ============================================================
+# CONVENIENCE LOADER
+# ============================================================
+
+def load_editorials(
+    input_path: Path = INPUT_JSON,
+) -> tuple[EditorialRecord, ...]:
+    """
+    Convenience function for PDF-generation code that
+    needs only the editorial records.
+    """
+
+    return load_editorial_study_data(
+        input_path
+    ).editorials
+
+
+# ============================================================
+# OPTIONAL DIRECT TEST
+# ============================================================
+
+def main() -> int:
+
+    try:
+
+        data = load_editorial_study_data()
+
+    except KnowledgeLoadError as exc:
+
+        print()
+        print(
+            "KNOWLEDGE LOAD FAILED"
+        )
+        print(
+            "---------------------"
+        )
+        print(
+            exc
+        )
+        print()
+
+        return 1
+
+    print()
+    print(
+        "KNOWLEDGE LOAD SUCCESSFUL"
+    )
+    print(
+        "-------------------------"
+    )
+
+    print(
+        f"Date: "
+        f"{data.publication_date}"
+    )
+
+    print(
+        f"Editorials: "
+        f"{len(data.editorials)}"
+    )
+
+    print()
+
+    for editorial in data.editorials:
+
+        print(
+            f"{editorial.editorial_number}. "
+            f"{editorial.heading} "
+            f"({editorial.gs_paper})"
+        )
+
+        print(
+            f"   Points: "
+            f"{len(editorial.points)}"
+        )
+
+        print(
+            f"   Anchors: "
+            f"{len(editorial.anchors)}"
+        )
+
+    print()
+
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(
+        main()
     )
