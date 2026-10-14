@@ -1,223 +1,168 @@
-from __future__ import annotations
 
-import subprocess
-import sys
-import time
-from pathlib import Path
-from typing import Final
+@echo off
+setlocal
+cd /d "%~dp0"
 
+title ONEPAGE STUDY - Editorials Daily
 
-# ============================================================
-# PROJECT PATHS
-# ============================================================
+echo.
+echo ========================================================================
+echo ONEPAGE STUDY - EDITORIALS DAILY
+echo ========================================================================
+echo.
 
-PROJECT_ROOT: Final[Path] = Path(__file__).resolve().parent
-
-CONVERTER: Final[Path] = (
-    PROJECT_ROOT
-    / "input_processing"
-    / "text_to_json_converter.py"
+REM PYTHON ENVIRONMENT
+if not exist ".venv\Scripts\python.exe" (
+    echo ERROR: Virtual environment not found.
+    echo Expected:
+    echo %CD%\.venv\Scripts\python.exe
+    echo.
+    pause
+    exit /b 1
 )
 
-VALIDATOR: Final[Path] = (
-    PROJECT_ROOT
-    / "input_processing"
-    / "validator.py"
+set "PYTHON=%CD%\.venv\Scripts\python.exe"
+
+REM STEP 1
+echo [1/6] Converting INPUT_DATA.txt to INPUT.json...
+echo.
+
+"%PYTHON%" "input_processing\text_to_json_converter.py"
+
+if errorlevel 1 (
+    echo.
+    echo ERROR: Input conversion failed.
+    goto :FAILED
 )
 
+echo.
+echo Conversion PASSED.
+echo.
 
-# ============================================================
-# DISPLAY HELPERS
-# ============================================================
+REM STEP 2
+echo [2/6] Validating INPUT.json...
+echo.
 
-def print_banner(label: str) -> None:
-    print()
-    print("=" * 72)
-    print(label)
-    print("=" * 72)
+"%PYTHON%" "input_processing\validator.py"
 
+if errorlevel 1 (
+    echo.
+    echo ERROR: Input validation failed.
+    goto :FAILED
+)
 
-def format_duration(seconds: float) -> str:
-    if seconds < 60:
-        return f"{seconds:.1f} seconds"
+echo.
+echo Validation PASSED.
+echo.
 
-    minutes = int(seconds // 60)
-    remaining_seconds = seconds % 60
+REM STEP 3
+echo [3/6] Generating daily PDF...
+echo.
 
-    return (
-        f"{minutes} minute(s), "
-        f"{remaining_seconds:.1f} seconds"
-    )
+"%PYTHON%" -m src.main
 
+if errorlevel 1 (
+    echo.
+    echo ERROR: Daily PDF generation failed.
+    goto :FAILED
+)
 
-# ============================================================
-# VALIDATION HELPERS
-# ============================================================
+echo.
+echo Daily PDF generation PASSED.
+echo.
 
-def require_file(
-    path: Path,
-    label: str,
-) -> None:
-    if not path.exists():
-        raise FileNotFoundError(
-            f"{label} was not found:\n{path}"
-        )
+REM STEP 4
+echo [4/6] Building GS repository...
+echo.
 
-    if not path.is_file():
-        raise FileNotFoundError(
-            f"{label} is not a file:\n{path}"
-        )
+"%PYTHON%" -m repository.manager.editorial_repository
 
+if errorlevel 1 (
+    echo.
+    echo ERROR: GS repository generation failed.
+    goto :FAILED
+)
 
-# ============================================================
-# PROCESS RUNNER
-# ============================================================
+echo.
+echo GS repository generation PASSED.
+echo.
 
-def run_step(
-    label: str,
-    command: list[str],
-) -> None:
-    print_banner(label)
+REM STEP 5
+echo [5/6] Organising daily PDF by year and month...
+echo.
 
-    started_at = time.perf_counter()
+"%PYTHON%" -m repository.manager.output_manager
 
-    try:
-        result = subprocess.run(
-            command,
-            cwd=PROJECT_ROOT,
-            check=False,
-        )
-    except OSError as exc:
-        raise RuntimeError(
-            f"{label} could not be started: {exc}"
-        ) from exc
+if errorlevel 1 (
+    echo.
+    echo ERROR: Daily output organisation failed.
+    goto :FAILED
+)
 
-    duration = time.perf_counter() - started_at
+echo.
+echo Daily output organisation PASSED.
+echo.
 
-    if result.returncode != 0:
-        print()
-        print(f"{label} failed.")
-        print(
-            f"Exit code: {result.returncode}"
-        )
-        print(
-            f"Time: {format_duration(duration)}"
-        )
+REM STEP 6
+echo [6/6] Generating social media image...
+echo.
 
-        raise SystemExit(
-            result.returncode
-            if result.returncode != 0
-            else 1
-        )
+"%PYTHON%" -m repository.manager.social_image_generator
 
-    print()
-    print(
-        f"{label} completed in "
-        f"{format_duration(duration)}."
-    )
+if errorlevel 1 (
+    echo.
+    echo ERROR: Social image generation failed.
+    goto :FAILED
+)
 
+echo.
+echo Social image generation PASSED.
+echo.
 
-# ============================================================
-# PRODUCTION PIPELINE
-# ============================================================
+REM OPEN SOCIAL IMAGE
+echo Opening social media image...
+echo.
 
-def main() -> int:
-    pipeline_started_at = time.perf_counter()
+"%PYTHON%" -c "import json,os,pathlib,datetime; root=pathlib.Path.cwd(); d=datetime.datetime.strptime(json.loads((root/'input_processing'/'INPUT.json').read_text(encoding='utf-8'))['publication_date'],'%%d %%B %%Y'); p=root/'output'/str(d.year)/d.strftime('%%m_%%B')/('UAK_Editorials_Social_'+d.strftime('%%y%%m%%d')+'.png'); assert p.is_file(),f'Social image not found: {p}'; os.startfile(str(p))"
 
-    python_executable = sys.executable
+if errorlevel 1 (
+    echo.
+    echo ERROR: Could not open social media image.
+    goto :FAILED
+)
 
-    try:
-        require_file(
-            CONVERTER,
-            "Input converter",
-        )
+REM SUCCESS
+echo.
+echo ========================================================================
+echo PRODUCTION COMPLETE
+echo ========================================================================
+echo.
+echo Input conversion      : PASSED
+echo Input validation      : PASSED
+echo Daily PDF             : GENERATED
+echo GS repository         : GENERATED
+echo Output organisation   : PASSED
+echo Social image          : GENERATED
+echo.
+echo Daily output:
+echo %CD%\output
+echo.
+echo GS repository:
+echo %CD%\repository
+echo.
+echo ========================================================================
+echo.
+pause
+exit /b 0
 
-        require_file(
-            VALIDATOR,
-            "Input validator",
-        )
-
-        # ----------------------------------------------------
-        # STEP 1 — CONVERT INPUT_DATA.txt TO INPUT.json
-        # ----------------------------------------------------
-
-        run_step(
-            "CONVERTING INPUT_DATA.txt TO INPUT.json",
-            [
-                python_executable,
-                str(CONVERTER),
-            ],
-        )
-
-        # ----------------------------------------------------
-        # STEP 2 — VALIDATE INPUT.json
-        # ----------------------------------------------------
-
-        run_step(
-            "VALIDATING INPUT.json",
-            [
-                python_executable,
-                str(VALIDATOR),
-            ],
-        )
-
-        # ----------------------------------------------------
-        # STEP 3 — GENERATE STANDARD AND PRO PDFs
-        # ----------------------------------------------------
-
-        run_step(
-            "GENERATING STANDARD AND PRO PDFs",
-            [
-                python_executable,
-                "-m",
-                "src.main",
-            ],
-        )
-
-    except FileNotFoundError as exc:
-        print_banner(
-            "PRODUCTION PIPELINE FAILED"
-        )
-        print(exc)
-        return 1
-
-    except RuntimeError as exc:
-        print_banner(
-            "PRODUCTION PIPELINE FAILED"
-        )
-        print(exc)
-        return 1
-
-    total_duration = (
-        time.perf_counter()
-        - pipeline_started_at
-    )
-
-    print_banner(
-        "COMPLETE PRODUCTION PIPELINE FINISHED"
-    )
-
-    print(
-        "Input conversion : PASSED"
-    )
-    print(
-        "Input validation : PASSED"
-    )
-    print(
-        "Standard PDF     : GENERATED"
-    )
-    print(
-        "Pro PDF          : GENERATED"
-    )
-    print(
-        f"Total time       : "
-        f"{format_duration(total_duration)}"
-    )
-
-    print("=" * 72)
-
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
+:FAILED
+echo.
+echo ========================================================================
+echo PRODUCTION FAILED
+echo ========================================================================
+echo.
+echo The pipeline stopped because one of the production steps failed.
+echo Check the error shown above.
+echo.
+pause
+exit /b 1

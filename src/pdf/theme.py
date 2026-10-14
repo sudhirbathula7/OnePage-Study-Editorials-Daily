@@ -92,7 +92,7 @@ HEADER_RADIUS: Final[float] = 2 * mm
 
 # Stronger visual hierarchy than the first test PDF.
 
-EDITORIAL_HEADING_SIZE: Final[float] = 12.5
+EDITORIAL_HEADING_SIZE: Final[float] = 12
 
 EDITORIAL_GS_SIZE: Final[float] = 7.5
 
@@ -108,24 +108,24 @@ EDITORIAL_NUMBER_SIZE: Final[float] = 12
 # The PDF generator can automatically reduce these values
 # when an unusually long editorial needs more space.
 
-POINT_NUMBER_SIZE: Final[float] = 10.5
+POINT_NUMBER_SIZE: Final[float] = 10.2
 
-POINT_TEXT_SIZE: Final[float] = 10.5
+POINT_TEXT_SIZE: Final[float] = 10.2
 
-POINT_TEXT_LEADING: Final[float] = 12
+POINT_TEXT_LEADING: Final[float] = 11.5
 
-POINT_GAP: Final[float] = 2.6 * mm
+POINT_GAP: Final[float] = 2.4 * mm
 
 
 # ============================================================
 # TAKEAWAY
 # ============================================================
 
-TAKEAWAY_SIZE: Final[float] = 10.5
+TAKEAWAY_SIZE: Final[float] = 10.4
 
-TAKEAWAY_LEADING: Final[float] = 12
+TAKEAWAY_LEADING: Final[float] = 11.5
 
-TAKEAWAY_TOP_GAP: Final[float] = 3.2 * mm
+TAKEAWAY_TOP_GAP: Final[float] = 3 * mm
 
 
 # ============================================================
@@ -141,7 +141,7 @@ EDITORIAL_PADDING_Y: Final[float] = 3.5 * mm
 
 EDITORIAL_CONTENT_GAP: Final[float] = 2.6 * mm
 
-EDITORIAL_HEADING_HEIGHT: Final[float] = 5.5 * mm
+EDITORIAL_HEADING_HEIGHT: Final[float] = 3.5 * mm
 
 
 # ============================================================

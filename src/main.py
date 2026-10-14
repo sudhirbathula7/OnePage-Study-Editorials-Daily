@@ -11,7 +11,7 @@ from src.publication import build_publication_metadata
 
 
 # ============================================================
-# ONEPAGE STUDY • EDITORIALS DAILY
+# ONEPAGE STUDY - EDITORIALS DAILY
 # MAIN
 # ============================================================
 
@@ -26,7 +26,7 @@ from src.publication import build_publication_metadata
 # False:
 # Generate the PDF without opening it.
 
-OPEN_PDF = True
+OPEN_PDF = False
 
 
 # ============================================================
@@ -39,8 +39,6 @@ def _open_pdf(
     """
     Open the generated PDF using the operating system's
     default PDF viewer.
-
-    The project is currently being developed on Windows.
     """
 
     if not OPEN_PDF:
@@ -66,17 +64,8 @@ def main() -> None:
     """
     Generate the daily OnePage Study editorial PDF.
 
-    Workflow:
-
-        INPUT_DATA.txt
-            ↓
-        INPUT.json
-            ↓
-        EditorialStudyData
-            ↓
-        OnePage Study • Editorials Daily
-            ↓
-        UAK_Editorials_Daily_YYMMDD.pdf
+    Repository creation and output organisation are handled
+    separately by repository_manager.
     """
 
     # --------------------------------------------------------
@@ -130,7 +119,7 @@ def main() -> None:
 
     print()
     print(
-        "ONEPAGE STUDY • EDITORIALS DAILY"
+        "ONEPAGE STUDY - EDITORIALS DAILY"
     )
     print(
         "--------------------------------"
