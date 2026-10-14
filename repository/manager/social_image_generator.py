@@ -50,9 +50,9 @@ FOOTER_SIZE = 23
 # SPACING SETTINGS
 # ============================================================
 
-QUESTION_LINE_GAP = 20
+QUESTION_LINE_GAP = 16
 ANCHOR_LINE_GAP = 12
-QUESTION_ANCHOR_GAP = 28
+QUESTION_ANCHOR_GAP = 24
 
 
 # ============================================================

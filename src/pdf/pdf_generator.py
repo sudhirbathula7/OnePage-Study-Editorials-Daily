@@ -1,6 +1,11 @@
 from __future__ import annotations
 
 import math
+import json
+from xml.sax.saxutils import escape
+
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.platypus import Paragraph
 from pathlib import Path
 
 from reportlab.lib.units import mm
@@ -107,115 +112,68 @@ def _draw_editorial_heading(
     rect: Rect,
     editorial: EditorialRecord,
 ) -> float:
-    """
-    Draw:
+    """Place question (left 85%) and GS label (right 15%) on one row."""
+    question = _question_for_heading(editorial.heading)
+    gs_text = editorial.gs_paper.strip()
 
-        India's Energy Dilemma                    GS II
+    heading_x = rect.x + HEADING_LEFT_INDENT
+    heading_top = rect.top - BOX_TO_HEADING_GAP
+    total_width = rect.right - heading_x
+    gs_width = total_width * 0.15
+    question_width = total_width * 0.85 - 2 * mm
 
-    Editorial numbering is intentionally hidden.
-
-    Returns the Y coordinate from which Point 1 should begin.
-    """
-
-    # --------------------------------------------------------
-    # HEADING POSITION
-    # --------------------------------------------------------
-
-    heading_x = (
-        rect.x
-        + HEADING_LEFT_INDENT
+    question_size = min(EDITORIAL_HEADING_SIZE, 10.0)
+    style = ParagraphStyle(
+        "EditorialQuestion",
+        fontName=FONT_BOLD,
+        fontSize=question_size,
+        leading=question_size + 2,
+        textColor=TEXT_BLACK,
+        spaceBefore=0,
+        spaceAfter=0,
+        splitLongWords=True,
     )
+    paragraph = Paragraph(escape(question), style)
+    _, question_height = paragraph.wrap(question_width, rect.height)
+    paragraph.drawOn(canvas, heading_x, heading_top - question_height)
 
-    heading_top = (
-        rect.top
-        - BOX_TO_HEADING_GAP
-    )
-
-    # --------------------------------------------------------
-    # GS PAPER
-    # --------------------------------------------------------
-
-    gs_text = (
-        editorial.gs_paper.strip()
-    )
-
-    gs_width = 13 * mm
-
-    heading_gap = 2 * mm
-
-    fitted_gs_size = fit_font_size(
+    gs_size = fit_font_size(
         text=gs_text,
         font_name=FONT_BOLD,
         preferred_size=EDITORIAL_GS_SIZE,
         available_width=gs_width,
         minimum_size=5.5,
     )
-
-    # --------------------------------------------------------
-    # EDITORIAL HEADING
-    # --------------------------------------------------------
-
-    heading_width = (
-        rect.right
-        - heading_x
-        - gs_width
-        - heading_gap
-    )
-
-    fitted_heading_size = fit_font_size(
-        text=editorial.heading,
-        font_name=FONT_BOLD,
-        preferred_size=EDITORIAL_HEADING_SIZE,
-        available_width=heading_width,
-        minimum_size=9.0,
-    )
-
-    baseline = (
-        heading_top
-        - fitted_heading_size
-    )
-
-    draw_text(
-        canvas=canvas,
-        text=editorial.heading,
-        x=heading_x,
-        y=baseline,
-        font_name=FONT_BOLD,
-        font_size=fitted_heading_size,
-        color=TEXT_BLACK,
-    )
-
-    # --------------------------------------------------------
-    # GS PAPER
-    # --------------------------------------------------------
-
     canvas.saveState()
-
-    canvas.setFillColor(
-        DARK_GREY
-    )
-
-    canvas.setFont(
-        FONT_BOLD,
-        fitted_gs_size,
-    )
-
-    canvas.drawRightString(
-        rect.right,
-        baseline,
-        gs_text,
-    )
-
+    canvas.setFillColor(DARK_GREY)
+    canvas.setFont(FONT_BOLD, gs_size)
+    # Align the GS baseline with the first question line.
+    gs_baseline = heading_top - question_size
+    canvas.drawRightString(rect.right, gs_baseline, gs_text)
     canvas.restoreState()
 
-    # --------------------------------------------------------
-    # POINT 1 START
-    # --------------------------------------------------------
+    heading_height = max(question_height, question_size + 2)
+    return heading_top - heading_height - HEADING_TO_FIRST_POINT_GAP
 
-    return (
-        baseline
-        - HEADING_TO_FIRST_POINT_GAP
-    )
+
+def _question_for_heading(heading: str) -> str:
+    """Use the exact question from INPUT.json; never invent one."""
+    input_path = Path(__file__).resolve().parents[2] / "input_processing" / "INPUT.json"
+    with input_path.open("r", encoding="utf-8") as stream:
+        data = json.load(stream)
+    matches = [
+        item for item in data["editorials"]
+        if item.get("heading") == heading
+    ]
+    if len(matches) != 1:
+        raise ValueError(
+            f"Expected exactly one INPUT.json editorial with heading {heading!r}; "
+            f"found {len(matches)}."
+        )
+    question = matches[0].get("question")
+    if not isinstance(question, str) or not question.strip():
+        raise ValueError(f"Missing question for editorial {heading!r}")
+    return question.strip()
 
 
 # ============================================================

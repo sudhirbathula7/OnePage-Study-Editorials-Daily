@@ -10,7 +10,7 @@ GS PAPER
 GS III
 
 QUESTION
-Why do rising food prices affect rural households severely, and why is controlling food inflation difficult?
+Why are rising food prices hard to control?
 
 POINT 1
 Food inflation occurs when the prices of essential food items rise over time. Poorer households spend a larger share of their income on food, making price increases particularly burdensome. Rural families can face additional pressure when rising food expenses combine with uncertain agricultural earnings.
@@ -42,7 +42,7 @@ GS PAPER
 GS III
 
 QUESTION
-Why have restrictions and cleaner firecracker alternatives struggled to prevent severe air pollution during festivals?
+Why is firecracker pollution difficult to control?
 
 POINT 1
 Firecrackers release smoke, gases and fine particles into the atmosphere during combustion. These emissions can worsen air quality, particularly when pollution from vehicles, construction and other sources is already high. Weather conditions that restrict pollutant dispersal can intensify the resulting pollution.
@@ -74,7 +74,7 @@ GS PAPER
 GS II
 
 QUESTION
-Why does restoring lasting peace in Manipur require more than reducing violence and strengthening security arrangements?
+What will it take to restore peace in Manipur?
 
 POINT 1
 Ethnic conflict can deepen when communities develop mistrust over identity, security and political representation. Violence may displace families, damage livelihoods and weaken everyday interactions between groups. Restoring order therefore requires addressing the social divisions that continue even after major clashes decline.
@@ -106,7 +106,7 @@ GS PAPER
 GS III
 
 QUESTION
-Why can persistent inflation lead the Reserve Bank of India to raise interest rates, and what limits the effectiveness of this response?
+Why don't higher interest rates always control inflation?
 
 POINT 1
 Inflation measures the general increase in prices across the economy. Headline inflation includes food and fuel prices, while core inflation excludes these volatile components. When both measures rise, it can indicate that price pressures are spreading beyond temporary changes in individual commodities.

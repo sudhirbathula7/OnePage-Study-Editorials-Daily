@@ -92,11 +92,11 @@ HEADER_RADIUS: Final[float] = 2 * mm
 
 # Stronger visual hierarchy than the first test PDF.
 
-EDITORIAL_HEADING_SIZE: Final[float] = 12
+EDITORIAL_HEADING_SIZE: Final[float] = 12.5
 
-EDITORIAL_GS_SIZE: Final[float] = 7.5
+EDITORIAL_GS_SIZE: Final[float] = 8
 
-EDITORIAL_NUMBER_SIZE: Final[float] = 12
+EDITORIAL_NUMBER_SIZE: Final[float] = 12.5
 
 
 # ============================================================

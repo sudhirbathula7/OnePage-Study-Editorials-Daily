@@ -3,6 +3,10 @@ from __future__ import annotations
 import json
 from datetime import datetime
 from pathlib import Path
+from xml.sax.saxutils import escape
+
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.platypus import Paragraph
 
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
@@ -203,9 +207,12 @@ def generate_editorial_pdf(
         pagesize=A4,
     )
 
-    canvas.setTitle(
-        editorial["heading"]
-    )
+    question = editorial.get("question")
+    if not isinstance(question, str) or not question.strip():
+        raise ValueError(f"Missing question for editorial {editorial.get('editorial_number')}")
+    question = question.strip()
+
+    canvas.setTitle(question)
 
     current_y = (
         PAGE_HEIGHT
@@ -270,34 +277,32 @@ def generate_editorial_pdf(
     current_y -= 9 * mm
 
     # --------------------------------------------------------
-    # HEADING
+    # QUESTION HEADING (wraps without overlapping GS label)
     # --------------------------------------------------------
 
-    canvas.setFont(
-        FONT_BOLD,
-        15,
-    )
-
-    canvas.drawString(
-        LEFT_MARGIN,
-        current_y,
-        editorial["heading"],
-    )
-
     gs_paper = editorial["gs_paper"]
+    canvas.setFont(FONT_BOLD, 9)
+    canvas.drawRightString(PAGE_WIDTH - RIGHT_MARGIN, current_y, gs_paper)
+    current_y -= 5 * mm
 
-    canvas.setFont(
-        FONT_BOLD,
-        9,
+    question_style = ParagraphStyle(
+        "RepositoryQuestion",
+        fontName=FONT_BOLD,
+        fontSize=15,
+        leading=19,
+        spaceBefore=0,
+        spaceAfter=0,
+        splitLongWords=True,
     )
-
-    canvas.drawRightString(
-        PAGE_WIDTH - RIGHT_MARGIN,
-        current_y,
-        gs_paper,
+    question_paragraph = Paragraph(escape(question), question_style)
+    current_y = draw_paragraph(
+        question_paragraph,
+        canvas,
+        x=LEFT_MARGIN,
+        top=current_y,
+        width=CONTENT_WIDTH,
     )
-
-    current_y -= 10 * mm
+    current_y -= 8 * mm
 
     # --------------------------------------------------------
     # POINTS

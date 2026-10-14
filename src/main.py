@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from datetime import date, datetime
 from pathlib import Path
 
 from src.config import OUTPUT_PATH
@@ -90,7 +91,22 @@ def main() -> None:
     # OUTPUT FOLDER
     # --------------------------------------------------------
 
-    OUTPUT_PATH.mkdir(
+    publication_date = metadata.publication_date
+    if isinstance(publication_date, datetime):
+        edition_date = publication_date.date()
+    elif isinstance(publication_date, date):
+        edition_date = publication_date
+    else:
+        edition_date = datetime.strptime(
+            str(publication_date).strip(), "%d %B %Y"
+        ).date()
+
+    dated_output_folder = (
+        OUTPUT_PATH
+        / str(edition_date.year)
+        / edition_date.strftime("%m_%B")
+    )
+    dated_output_folder.mkdir(
         parents=True,
         exist_ok=True,
     )
@@ -100,7 +116,7 @@ def main() -> None:
     # --------------------------------------------------------
 
     output_path = (
-        OUTPUT_PATH
+        dated_output_folder
         / metadata.pdf_filename
     )
 
