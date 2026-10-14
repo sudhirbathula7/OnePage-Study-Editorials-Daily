@@ -24,7 +24,7 @@ if not exist ".venv\Scripts\python.exe" (
 set "PYTHON=%CD%\.venv\Scripts\python.exe"
 
 REM STEP 1
-echo [1/6] Converting INPUT_DATA.txt to INPUT.json...
+echo [1/7] Converting INPUT_DATA.txt to INPUT.json...
 echo.
 
 "%PYTHON%" "input_processing\text_to_json_converter.py"
@@ -40,7 +40,7 @@ echo Conversion PASSED.
 echo.
 
 REM STEP 2
-echo [2/6] Validating INPUT.json...
+echo [2/7] Validating INPUT.json...
 echo.
 
 "%PYTHON%" "input_processing\validator.py"
@@ -56,7 +56,7 @@ echo Validation PASSED.
 echo.
 
 REM STEP 3
-echo [3/6] Generating daily PDF...
+echo [3/7] Generating daily PDF...
 echo.
 
 "%PYTHON%" -m src.main
@@ -72,7 +72,7 @@ echo Daily PDF generation PASSED.
 echo.
 
 REM STEP 4
-echo [4/6] Building GS repository...
+echo [4/7] Building GS repository...
 echo.
 
 "%PYTHON%" -m repository.manager.editorial_repository
@@ -88,7 +88,7 @@ echo GS repository generation PASSED.
 echo.
 
 REM STEP 5
-echo [5/6] Organising daily PDF by year and month...
+echo [5/7] Organising daily PDF by year and month...
 echo.
 
 "%PYTHON%" -m repository.manager.output_manager
@@ -104,7 +104,7 @@ echo Daily output organisation PASSED.
 echo.
 
 REM STEP 6
-echo [6/6] Generating social media image...
+echo [6/7] Generating social media image...
 echo.
 
 "%PYTHON%" -m repository.manager.social_image_generator
@@ -131,6 +131,22 @@ if errorlevel 1 (
     goto :FAILED
 )
 
+REM STEP 7
+echo [7/7] Archiving original daily input data...
+echo.
+
+"%PYTHON%" -m repository.manager.input_archive
+
+if errorlevel 1 (
+    echo.
+    echo ERROR: Daily input archive failed.
+    goto :FAILED
+)
+
+echo.
+echo Input archive PASSED.
+echo.
+
 REM SUCCESS
 echo.
 echo ========================================================================
@@ -143,12 +159,16 @@ echo Daily PDF             : GENERATED
 echo GS repository         : GENERATED
 echo Output organisation   : PASSED
 echo Social image          : GENERATED
+echo Input data archive    : SAVED
 echo.
 echo Daily output:
 echo %CD%\output
 echo.
 echo GS repository:
 echo %CD%\repository
+echo.
+echo Input data repository:
+echo %CD%\repository\input_data
 echo.
 echo ========================================================================
 echo.
